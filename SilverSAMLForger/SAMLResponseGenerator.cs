@@ -46,13 +46,14 @@ public class SAMLResponseGenerator
 			assertion.SetAttribute("ID", "_" + Guid.NewGuid().ToString());
 			assertion.SetAttribute("Version", "2.0");
 			assertion.SetAttribute("IssueInstant", DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"));
+			response.AppendChild(assertion);
+
+			var assertionIssuer = document.CreateElement("Issuer", "urn:oasis:names:tc:SAML:2.0:assertion");
+			assertionIssuer.InnerText = identityProviderIdentifier;
+			assertion.AppendChild(assertionIssuer);
 
 			var subject = document.CreateElement("Subject", "urn:oasis:names:tc:SAML:2.0:assertion");
 			assertion.AppendChild(subject);
-
-			var newIssuer = document.CreateElement("Issuer", "urn:oasis:names:tc:SAML:2.0:assertion");
-			newIssuer.InnerText = identityProviderIdentifier;
-			assertion.AppendChild(newIssuer);
 
 			var nameId = document.CreateElement("NameID", "urn:oasis:names:tc:SAML:2.0:assertion");
 			nameId.SetAttribute("Format", "urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress");
@@ -79,7 +80,6 @@ public class SAMLResponseGenerator
 			var audienceElement = document.CreateElement("Audience", "urn:oasis:names:tc:SAML:2.0:assertion");
 			audienceElement.InnerText = audience;
 			audienceRestriction.AppendChild(audienceElement);
-			response.AppendChild(assertion);
 
 			var attributeStatement = document.CreateElement("AttributeStatement", "urn:oasis:names:tc:SAML:2.0:assertion");
 			assertion.AppendChild(attributeStatement);
@@ -95,7 +95,6 @@ public class SAMLResponseGenerator
 				attributeElement.AppendChild(attributeValueElement);
 			}
 
-			// Sign the response
 			var authnStatement = document.CreateElement("AuthnStatement", "urn:oasis:names:tc:SAML:2.0:assertion");
 			authnStatement.SetAttribute("AuthnInstant", DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ"));
 			authnStatement.SetAttribute("SessionIndex", "_" + Guid.NewGuid().ToString());
@@ -125,7 +124,8 @@ public class SAMLResponseGenerator
 			signedXml.KeyInfo.AddClause(new KeyInfoX509Data(certificate, X509IncludeOption.EndCertOnly));
 
 			signedXml.ComputeSignature();
-			assertion.InsertAfter(signedXml.GetXml(), assertion.FirstChild);
+
+			assertion.InsertAfter(signedXml.GetXml(), assertionIssuer);
 
 			var xmlBytes = Encoding.UTF8.GetBytes(document.OuterXml);
 			var encodedResponse = Convert.ToBase64String(xmlBytes);
@@ -140,4 +140,3 @@ public class SAMLResponseGenerator
 		}
 	}
 }
-
